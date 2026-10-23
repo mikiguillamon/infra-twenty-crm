@@ -52,16 +52,7 @@ services:
       start_period: 120s
       retries: 12
     logging: *log-options
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=coolify"
-      - "traefik.http.routers.twenty-${TWENTY_STACK_ID:?Set unique staging/production ID}.rule=Host(`${TWENTY_ROOT_DOMAIN:?Required root domain}`) || HostRegexp(`${TWENTY_ROUTER_HOST_REGEX:?Required tenant hostname expression}`)"
-      - "traefik.http.routers.twenty-${TWENTY_STACK_ID}.entrypoints=https"
-      - "traefik.http.routers.twenty-${TWENTY_STACK_ID}.priority=10"
-      - "traefik.http.routers.twenty-${TWENTY_STACK_ID}.tls=true"
-      - "traefik.http.routers.twenty-${TWENTY_STACK_ID}.service=twenty-${TWENTY_STACK_ID}"
-      - "traefik.http.services.twenty-${TWENTY_STACK_ID}.loadbalancer.server.port=3000"
-
+    
   twenty-worker:
     image: twentycrm/twenty:${TWENTY_IMAGE_TAG:?Pin the validated Twenty version}
     command: ["yarn", "worker:prod"]
