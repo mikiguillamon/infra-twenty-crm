@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.sql
+*.dump
+*.bak
+*.tar
+*.tar.gz
+.DS_Store

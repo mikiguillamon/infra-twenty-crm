@@ -1,0 +1,110 @@
+# Twenty v2.48.0 - staging candidate for Coolify, not verified live.
+# PostgreSQL 16 is a separate resource on the same Coolify network.
+# All runtime services use one single shared codebase per environment.
+# Security exception: LOCAL logic functions are permitted ONLY for JFF-approved apps.
+
+x-twenty-env: &twenty-env
+  NODE_ENV: production
+  SERVER_URL: ${SERVER_URL:?Required public root URL}
+  PG_DATABASE_URL: ${PG_DATABASE_URL:?Required private Coolify PostgreSQL URL}
+  REDIS_URL: redis://twenty-redis:6379
+  ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Required unique encryption key}
+  FALLBACK_ENCRYPTION_KEY: ${FALLBACK_ENCRYPTION_KEY:-}
+  IS_CONFIG_VARIABLES_IN_DB_ENABLED: "false"
+  IS_MULTIWORKSPACE_ENABLED: "true"
+  DEFAULT_SUBDOMAIN: app
+  IS_WORKSPACE_CREATION_LIMITED_TO_SERVER_ADMINS: "true"
+  LOGIC_FUNCTION_TYPE: LOCAL
+  CODE_INTERPRETER_TYPE: DISABLED
+  STORAGE_TYPE: local
+
+x-log-options: &log-options
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+services:
+  twenty-web:
+    image: twentycrm/twenty:${TWENTY_IMAGE_TAG:?Pin the validated Twenty version}
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
+    expose:
+      - "3000"
+    environment:
+      <<: *twenty-env
+      NODE_PORT: "3000"
+      DISABLE_DB_MIGRATIONS: "false"
+      DISABLE_CRON_JOBS_REGISTRATION: "false"
+    volumes:
+      - twenty-files:/app/packages/twenty-server/.local-storage
+    depends_on:
+      twenty-redis:
+        condition: service_healthy
+    networks:
+      - private
+      - coolify
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:3000/healthz"]
+      interval: 15s
+      timeout: 7s
+      start_period: 120s
+      retries: 12
+    logging: *log-options
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=coolify"
+      - "traefik.http.routers.twenty-${TWENTY_STACK_ID:?Set unique staging/production ID}.rule=Host(`${TWENTY_ROOT_DOMAIN:?Required root domain}`) || HostRegexp(`${TWENTY_ROUTER_HOST_REGEX:?Required tenant hostname expression}`)"
+      - "traefik.http.routers.twenty-${TWENTY_STACK_ID}.entrypoints=https"
+      - "traefik.http.routers.twenty-${TWENTY_STACK_ID}.priority=10"
+      - "traefik.http.routers.twenty-${TWENTY_STACK_ID}.tls=true"
+      - "traefik.http.routers.twenty-${TWENTY_STACK_ID}.service=twenty-${TWENTY_STACK_ID}"
+      - "traefik.http.services.twenty-${TWENTY_STACK_ID}.loadbalancer.server.port=3000"
+
+  twenty-worker:
+    image: twentycrm/twenty:${TWENTY_IMAGE_TAG:?Pin the validated Twenty version}
+    command: ["yarn", "worker:prod"]
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 60s
+    environment:
+      <<: *twenty-env
+      DISABLE_DB_MIGRATIONS: "true"
+      DISABLE_CRON_JOBS_REGISTRATION: "true"
+    volumes:
+      - twenty-files:/app/packages/twenty-server/.local-storage
+    networks:
+      - private
+      - coolify
+    depends_on:
+      twenty-redis:
+        condition: service_healthy
+      twenty-web:
+        condition: service_healthy
+    logging: *log-options
+
+  twenty-redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis-data:/data
+    networks:
+      - private
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    logging: *log-options
+
+networks:
+  private:
+    internal: true
+  coolify:
+    external: true
+
+volumes:
+  twenty-files:
+  redis-data:
