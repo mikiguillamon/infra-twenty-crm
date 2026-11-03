@@ -17,6 +17,8 @@ x-twenty-env: &twenty-env
   LOGIC_FUNCTION_TYPE: LOCAL
   CODE_INTERPRETER_TYPE: DISABLED
   STORAGE_TYPE: local
+  APP_CLAIM_GITHUB_CLIENT_ID: ${APP_CLAIM_GITHUB_CLIENT_ID:?Required}
+  APP_CLAIM_GITHUB_CLIENT_SECRET: ${APP_CLAIM_GITHUB_CLIENT_SECRET:?Required}
 
 x-log-options: &log-options
   driver: json-file
