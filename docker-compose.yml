@@ -5,6 +5,7 @@
 
 x-twenty-env: &twenty-env
   NODE_ENV: production
+  TELEMETRY_ENABLED: "false"
   SERVER_URL: ${SERVER_URL:?Required public root URL}
   PG_DATABASE_URL: ${PG_DATABASE_URL:?Required private Coolify PostgreSQL URL}
   REDIS_URL: redis://twenty-redis:6379
