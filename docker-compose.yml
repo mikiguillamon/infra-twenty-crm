@@ -29,6 +29,36 @@ x-log-options: &log-options
 services:
   twenty-web:
     image: twentycrm/twenty:${TWENTY_IMAGE_TAG:?Pin the validated Twenty version}
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        node <<'NODE'
+        const fs = require('node:fs');
+
+        const file = '/app/packages/twenty-server/dist/engine/core-modules/auth/constants/max-workspaces-without-organization-key.constants.js';
+        const original = 'const MAX_WORKSPACES_WITHOUT_ENTERPRISE_KEY = 5;';
+        const modified = 'const MAX_WORKSPACES_WITHOUT_ENTERPRISE_KEY = 1000000;';
+
+        try {
+          const content = fs.readFileSync(file, 'utf8');
+
+          if (content.includes(modified)) {
+            console.log('[Twenty Patch] Ya aplicado');
+          } else if (content.split(original).length === 2) {
+            const tmp = file + '.patch-tmp';
+            fs.writeFileSync(tmp, content.replace(original, modified));
+            fs.renameSync(tmp, file);
+            console.log('[Twenty Patch] Aplicado correctamente');
+          } else {
+            console.warn('[Twenty Patch] AVISO: Version incompatible. Sin modificar.');
+          }
+        } catch (error) {
+          console.warn('[Twenty Patch] AVISO:', error.message);
+        }
+        NODE
+
+        exec /app/entrypoint.sh node dist/main
     restart: unless-stopped
     init: true
     stop_grace_period: 30s
